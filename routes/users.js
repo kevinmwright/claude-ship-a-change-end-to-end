@@ -58,9 +58,15 @@ function validateUserInput(body) {
   return errors;
 }
 
+// Turns a route param into a user id, or null if it isn't a plain positive
+// integer. Number() alone is too lenient: it reads "0x1", "1e0" and " 1" as 1.
+function parseUserId(param) {
+  return /^[1-9]\d*$/.test(param) ? Number(param) : null;
+}
+
 // PUT /users/:id — replace a user's name and email; both are required
 router.put("/:id", (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseUserId(req.params.id);
   const errors = validateUserInput(req.body);
 
   if (errors.length > 0) {
@@ -69,7 +75,8 @@ router.put("/:id", (req, res) => {
 
   const name = req.body.name.trim();
   const email = req.body.email.trim();
-  const user = store.updateUser(id, { name, email });
+  // A malformed id can never match a user, so it's a 404 like any unknown id.
+  const user = id === null ? undefined : store.updateUser(id, { name, email });
 
   if (!user) {
     return res.status(404).json({ error: "User not found" });
